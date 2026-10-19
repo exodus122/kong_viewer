@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kong Collision Spheres</title>
+<style>
+:root {
+  --bg: #0e1116; --panel: #161b22; --panel2: #1c232c; --line: #2a333f; --text: #e6edf3;
+  --muted: #8b98a8; --accent: #f2c14e; --body: #4cc3d9; --bone: #f59e0b; --broad: #9aa4b2; --sel: #4ade80; --last: #ef4444;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f5f7; --panel: #ffffff; --panel2: #f0f2f5; --line: #d9dee5; --text: #18202a;
+    --muted: #5d6b7c; --body: #1f8fa3; --bone: #d97706; --broad: #6b7684; --sel: #16a34a; --last: #dc2626;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f4f5f7; --panel: #ffffff; --panel2: #f0f2f5; --line: #d9dee5; --text: #18202a;
+  --muted: #5d6b7c; --body: #1f8fa3; --bone: #d97706; --broad: #6b7684; --sel: #16a34a; --last: #dc2626;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+#app { display: grid; grid-template-columns: 330px 1fr; height: 100vh; }
+aside { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+aside header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+aside h1 { font-size: 15px; margin: 0; letter-spacing: .2px; }
+aside h1 span { color: var(--muted); font-weight: 400; }
+.section { padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 6px; }
+.kongs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.kongs button { padding: 6px 0; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+  border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; }
+.kongs button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
+input[type="search"], select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel2); color: var(--text); font: inherit; }
+#animList { flex: 1; overflow: auto; min-height: 120px; border-bottom: 1px solid var(--line); }
+#animList button { display: flex; width: 100%; justify-content: space-between; gap: 8px; padding: 5px 16px;
+  border: 0; background: none; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+#animList button:hover { background: var(--panel2); }
+#animList button[aria-current="true"] { background: var(--panel2); box-shadow: inset 3px 0 0 var(--accent); }
+#animList .meta { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
+#animList .unnamed { color: var(--muted); }
+.toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.toggles label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+main { position: relative; min-width: 0; display: grid; grid-template-rows: 1fr auto; }
+#view { position: relative; min-height: 0; }
+#view canvas { display: block; width: 100%; height: 100%; }
+#hud { position: absolute; left: 12px; top: 10px; pointer-events: none; font-size: 12px; color: var(--muted); }
+#hud b { color: var(--text); font-size: 14px; }
+#tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line);
+  padding: 4px 8px; border-radius: 6px; font-size: 12px; display: none; white-space: nowrap; }
+.transport { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--panel);
+  border-top: 1px solid var(--line); flex-wrap: wrap; }
+.transport button { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 6px;
+  padding: 5px 10px; cursor: pointer; font: inherit; min-width: 34px; }
+.transport input[type="range"] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+.transport select { width: auto; }
+#frameOut { font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; color: var(--muted); }
+#tableWrap { max-height: 210px; overflow: auto; border-top: 1px solid var(--line); background: var(--panel); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 12px; }
+th, td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 500; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--panel2); }
+tbody tr.off td { opacity: .38; }
+.badge { display:inline-block; padding:0 6px; border-radius:9px; font-size:11px; background:var(--panel2); border:1px solid var(--line); }
+.badge.last { border-color: var(--last); color: var(--last); }
+#setInfo { margin-top: 2px; }
+tbody tr.sel { background: var(--panel2); box-shadow: inset 3px 0 0 var(--sel); }
+#drop { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: var(--bg); z-index: 5; }
+#drop .card { max-width: 560px; padding: 24px 28px; background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; }
+#drop code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
+.note { color: var(--muted); font-size: 11.5px; padding: 8px 16px 12px; }
+@media (max-width: 760px) {
+  #app { grid-template-columns: 1fr; grid-template-rows: 46vh 1fr; height: auto; min-height: 100vh; }
+  aside { order: 2; } main { order: 1; height: 46vh; }
+  #animList { max-height: 40vh; }
+}
+</style>
+</head>
+<body>
+<div id="drop"><div class="card">
+  <h2 style="margin-top:0">No Kong data loaded</h2>
+  <p>This viewer reads data extracted from your own ROM. Generate it next to this page with:</p>
+  <p><code>python extract.py --rom path/to/baserom.us.z64</code></p>
+  <p>Then reload, or drop the generated <code>kong_data.js</code> / <code>.json</code> file here.</p>
+</div></div>
+<div id="app">
+  <aside>
+    <header><h1>Kong Collision Spheres <span>· DK64 (US)</span></h1></header>
+    <div class="section"><div class="label">Kong</div><div class="kongs" id="kongs"></div></div>
+    <div class="section"><div class="label">Animation</div><input type="search" id="search" placeholder="Filter, e.g. roll, jump, 0x47">
+      <label style="display:block;margin-top:6px" title="Animations where the last sphere the game tests is a bone sphere. Only that sphere can trigger the B. Locker portal, so these are the B. Locker skip candidates"><input type="checkbox" id="onlyBone"> Only animations with active bone spheres</label></div>
+    <div id="animList" role="listbox" aria-label="Animations"></div>
+    <div class="section">
+      <div class="label">Show</div>
+      <div class="toggles">
+        <label><input type="checkbox" id="tBone" checked><span class="swatch" id="swBone" style="background:var(--bone)"></span>Bone spheres</label>
+        <label title="Colour the last active sphere the game tests red: only it can trigger touch surfaces such as the B. Locker portal"><input type="checkbox" id="tLast" checked><span class="swatch" style="background:var(--last)"></span>Last tested in red</label>
+        <label><input type="checkbox" id="tBody" checked><span class="swatch" style="background:var(--body)"></span>Body spheres</label>
+        <label><input type="checkbox" id="tBroad"><span class="swatch" style="background:var(--broad)"></span>Broad-phase</label>
+        <label><input type="checkbox" id="tTrail">Sphere trails</label>
+        <label><input type="checkbox" id="tSkel">Skeleton</label>
+        <label><input type="checkbox" id="tGrid" checked>Floor grid</label>
+        <label title="Draw the Kong with its ROM textures (pointer table 25), including the animated eye and mouth textures (first frame)."><input type="checkbox" id="tTex">Textures</label>
+      </div>
+      <div style="margin-top:8px"><select id="sphereMode" aria-label="Which spheres">
+        <option value="active" selected>Spheres: active this frame</option>
+        <option value="dim">Spheres: active + inactive (dimmed)</option>
+        <option value="all">Spheres: all (ignore sphere sets)</option></select></div>
+      <div style="margin-top:6px"><select id="meshMode" aria-label="Mesh display">
+        <option value="solid">Mesh: solid</option><option value="ghost" selected>Mesh: see-through</option>
+        <option value="wire">Mesh: wireframe</option><option value="off">Mesh: hidden</option></select></div>
+    </div>
+    <div class="note">Every frame the game turns all spheres off, then turns on one sphere set picked by the
+      current animation and frame (func_global_asm_80675EE0). Only active spheres are tested against walls
+      (func_global_asm_806734E4), and only against walls whose height range contains the sphere's centre.
+      Body spheres sit on the actor's root and ignore animation. Units are model units.</div>
+  </aside>
+  <main>
+    <div id="view"><div id="hud"><div id="hudMain"></div><div id="setInfo"></div></div><div id="tip"></div></div>
+    <div>
+      <div class="transport">
+        <button id="play" aria-label="Play or pause">⏸</button>
+        <button id="step" aria-label="Step one frame">+1</button>
+        <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="Frame">
+        <span id="frameOut">0 / 0</span>
+        <select id="speed" aria-label="Playback speed">
+          <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option>
+        </select>
+        <select id="mode" aria-label="Playback mode" title="Game updates shows only the frames the game evaluates">
+          <option value="game" selected>Game updates</option><option value="smooth">Smooth</option>
+        </select>
+        <select id="boost" aria-label="Lag boost" title="Lag boost (D_global_asm_80744478): 2 = no lag">
+          <option value="2" selected>No lag (boost 2)</option><option value="3">Lag boost 3</option><option value="4">Lag boost 4</option>
+        </select>
+      </div>
+      <div id="tableWrap"><table>
+        <thead><tr><th>#</th><th>Attached to</th><th>Active</th><th>Radius</th><th>X</th><th>Y</th><th>Z</th><th>Travel</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // load the extracted data fresh every time, so a re-run of extract.py never shows a cached copy
+  document.write('<script src="kong_data.js?v=' + Date.now() + '" onerror="void 0"><\/script>');
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const KONG_ACCENT = { DK: '#f2c14e', Diddy: '#e5484d', Lanky: '#3e8ef7', Tiny: '#a06cd5', Chunky: '#3fb950' };
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+// ---------------------------------------------------------------- data
+async function gunzipB64(b64) {
+  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text());
+}
+async function loadFromFile(file) {
+  const text = await file.text();
+  if (file.name.endsWith('.js')) {
+    const m = text.match(/KONG_DATA_GZ_B64\s*=\s*"([^"]+)"/);
+    return gunzipB64(m[1]);
+  }
+  return JSON.parse(text);
+}
+
+// ---------------------------------------------------------------- game math (func_global_asm_806195D0)
+// quarter-wave sine table, 512 steps (D_global_asm_8061ACA0)
+const SIN = new Float32Array(513);
+for (let i = 0; i <= 512; i++) SIN[i] = Math.fround(Math.sin(i * Math.PI / 1024));
+function halfCS(v) {               // returns [cos, sin] of the half angle, as 80619B44 does
+  const i = (v >> 6) & 0x1FF;
+  if (v & 0x8000) return [-SIN[i], SIN[512 - i]];
+  return [SIN[512 - i], SIN[i]];
+}
+function localMatrix(a, b, c, s0, s1, s2, off) {
+  const [cx, sx] = halfCS(a), [cy, sy] = halfCS(b), [cz, sz] = halfCS(c);
+  const f6 = cx * cy, f7 = cx * sy, f8 = sx * cy, f9 = sx * sy;
+  const w = f6 * cz + f9 * sz, x = f8 * cz - f7 * sz, y = f7 * cz + f8 * sz, z = f6 * sz - f9 * cz;
+  const s = 2 / (w * w + x * x + y * y + z * z);
+  const xx = x * x * s, yy = y * y * s, zz = z * z * s, xy = x * y * s, xz = x * z * s, yz = y * z * s;
+  const wx = w * x * s, wy = w * y * s, wz = w * z * s;
+  const k0 = s0 ? s0 / 32768 : 1, k1 = s1 ? s1 / 32768 : 1, k2 = s2 ? s2 / 32768 : 1;
+  return [ (1 - (yy + zz)) * k0, (xy + wz) * k0, (xz - wy) * k0, 0,
+           (xy - wz) * k1, (1 - (xx + zz)) * k1, (yz + wx) * k1, 0,
+           (xz + wy) * k2, (yz - wx) * k2, (1 - (xx + yy)) * k2, 0,
+           off[0], off[1], off[2], 1 ];
+}
+function mul(A, B) {               // row-vector convention: v . A . B
+  const C = new Array(16);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++)
+    C[4 * i + j] = A[4 * i] * B[j] + A[4 * i + 1] * B[4 + j] + A[4 * i + 2] * B[8 + j] + A[4 * i + 3] * B[12 + j];
+  return C;
+}
+function xform(M, x, y, z) {
+  return [x * M[0] + y * M[4] + z * M[8] + M[12], x * M[1] + y * M[5] + z * M[9] + M[13], x * M[2] + y * M[6] + z * M[10] + M[14]];
+}
+const sx11 = (v) => (v << 21) >> 21;
+// Decoded channel values for a fractional frame, interpolated the way func_global_asm_80619C2C does.
+function sampleAnim(an, pos, loop) {
+  const n = an.frames;
+  let A = Math.floor(pos), frac = pos - A;
+  if (A >= n) A = n - 1;
+  let B = A + 1;
+  if (B >= n) B = loop ? 0 : n - 1;
+  let t9 = !(an.flags & 0x20) ? Math.round(frac * 1024) : 0;      // flag 0x20: the game snaps to keyframes
+  const rA = an.rot[A], rB = an.rot[B], sA = an.scl[A], sB = an.scl[B];
+  const rot = new Array(rA.length), scl = new Array(sA.length);
+  for (let k = 0; k < rA.length; k++) {
+    const d = sx11(((rB[k] - rA[k]) & 0xFFFF) >> 5);
+    rot[k] = (rA[k] + (((d * t9) >> 10) << 5)) & 0xFFFF;
+    if (an.sclmask[k] && sA[k] !== sB[k]) {
+      const ds = (sB[k] - sA[k]) >> 4;
+      scl[k] = (sA[k] + ((ds * t9) >>> 6)) & 0xFFFF;
+    } else scl[k] = sA[k];
+  }
+  const root = [0, 1, 2].map(i => (an.root[A][i] * 1024 + (an.root[B][i] - an.root[A][i]) * t9) / 32768);
+  return { rot, scl, root };
+}
+// Runtime bone-scale overrides (animation_state->unk20, e.g. Lanky's arm stretch), measured from logs.
+function stretchAt(an, frame) {
+  const lst = DATA.stretch && DATA.stretch[String(an.anim)];
+  if (!lst) return [];
+  return lst.map(([a, b, pts]) => {
+    let s = pts[0][1];
+    if (frame >= pts[pts.length - 1][0]) s = pts[pts.length - 1][1];
+    else for (let k = 0; k + 1 < pts.length; k++) {
+      const [f0, s0] = pts[k], [f1, s1] = pts[k + 1];
+      if (frame >= f0 && frame <= f1) { const t = f1 > f0 ? (frame - f0) / (f1 - f0) : 0; s = s0.map((x, j) => x + (s1[j] - x) * t); break; }
+    }
+    return [a, b, s];
+  });
+}
+function poseBones(kong, sample, ov = []) {
+  const world = [];
+  kong.bones.forEach((b, i) => {
+    const c = b.chan;
+    const L = localMatrix(sample.rot[3 * c], sample.rot[3 * c + 1], sample.rot[3 * c + 2],
+                          sample.scl[3 * c], sample.scl[3 * c + 1], sample.scl[3 * c + 2], b.off);
+    for (const [ba, bb, sv] of ov) {
+      if (b.mtx === ba) for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) L[4 * k + j] *= sv[k];
+      if (b.mtx === bb) for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) L[4 * k + j] /= sv[k];
+    }
+    let P;
+    if (i === 0) {
+      const r = sample.root;                      // root bone offset from the animation, always applied in game
+      P = [1,0,0,0, 0,1,0,0, 0,0,1,0, r[0],r[1],r[2],1];
+    } else P = world[b.parent];
+    world[b.mtx] = mul(L, P);
+  });
+  return world;
+}
+const IDENT = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+function sphereCenter(world, s) { return xform(s.mtx < 0 ? IDENT : world[s.mtx], s.pos[0], s.pos[1], s.pos[2]); }
+
+// ---------------------------------------------------------------- sphere sets (func_global_asm_80675EE0)
+// The first window (in table order) whose frame range contains the current frame wins.
+// With no matching entry the game leaves the previous set active.
+function activeSet(an, frame) {
+  const f = Math.trunc(frame);
+  for (const [f0, f1, set] of an.windows) if (f >= f0 && f <= f1) return set;
+  return null;
+}
+// true when some sphere-set entry of the animation ends in a bone sphere: only the last sphere tested
+// can trigger a touch surface (func_global_asm_80673708 clears the touch value for each sphere)
+function hasActiveBone(kong, an) {
+  return an.windows.some(([, , set]) => {
+    const live = (DATA.sphereSets[set] || []).map(n => kong.collision.spheres[n - 1]).filter(s => s && s.r > 0);
+    return live.length > 0 && live[live.length - 1].mtx >= 0;
+  });
+}
+function activeIndices(set) {
+  if (set === null || set === undefined || set < 0 || !DATA.sphereSets[set]) return null;
+  return new Set(DATA.sphereSets[set].map(n => n - 1));      // the table uses 1-based sphere numbers
+}
+
+// ---------------------------------------------------------------- three.js scene
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+view.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 1, 20000);
+camera.position.set(170, 150, 270);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 90, 0);
+controls.enableDamping = true;
+window.__viewer = { camera, controls, get state() { return S; } };
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(200, 400, 300); scene.add(sun);
+const grid = new THREE.GridHelper(1000, 20); scene.add(grid);
+
+const kongGroup = new THREE.Group(); scene.add(kongGroup);
+let S = null;   // current kong state
+
+function applyTheme() {
+  scene.background = new THREE.Color(css('--bg'));
+  grid.material.color = new THREE.Color(css('--line'));
+  grid.material.opacity = 0.9; grid.material.transparent = true;
+}
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
+
+// ---------------------------------------------------------------- textures (pointer table 25, RGBA16 in the ROM)
+const TEXTURE_CACHE = new Map();
+function romTexture(texKey, wrapS, wrapT) {
+  const key = `${texKey}:${wrapS}:${wrapT}`;
+  if (TEXTURE_CACHE.has(key)) return TEXTURE_CACHE.get(key);
+  const t = DATA.textures[texKey];
+  const bytes = Uint8Array.from(atob(t.rgba), c => c.charCodeAt(0));
+  const tex = new THREE.DataTexture(bytes, t.w, t.h, THREE.RGBAFormat);
+  // N64 tile modes: bit 0 mirror, bit 1 clamp
+  const wrap = (m) => (m & 2) ? THREE.ClampToEdgeWrapping : (m & 1) ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping;
+  tex.wrapS = wrap(wrapS); tex.wrapT = wrap(wrapT);
+  tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  TEXTURE_CACHE.set(key, tex);
+  return tex;
+}
+// one three.js material per N64 material, drawn like 3d_model_viewer's DK64 actor renderer: every texture
+// through the vertex UVs, untextured (shade-only) parts white under the lights, and the material's culling
+function texturedMaterial(m) {
+  const side = (m.cull & 0x400) ? THREE.FrontSide : (m.cull & 0x200) ? THREE.BackSide : THREE.DoubleSide;
+  if (m.tex == null) return new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, side });
+  const map = romTexture(m.key, m.wrapS, m.wrapT);   // UVs are already divided by the tile size
+  // only cut holes when the combiner takes alpha from the texture
+  const mat = new THREE.MeshStandardMaterial({ map, roughness: 0.85, side, alphaTest: m.alpha ? 0.5 : 0 });
+  mat.userData.alphaTest = mat.alphaTest;
+  return mat;
+}
+
+function buildKong(kong) {
+  kongGroup.clear();
+  const accent = new THREE.Color(KONG_ACCENT[kong.name] || '#f2c14e');
+  document.documentElement.style.setProperty('--accent', KONG_ACCENT[kong.name] || '#f2c14e');
+  // mesh (rigid skinning: one bone matrix per vertex)
+  const nv = kong.mesh.bone.length;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nv * 3), 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nv * 3), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(kong.mesh.uv), 2));
+  // triangles grouped by material so the textured look can use one three.js material per group
+  const order = kong.mesh.mat.map((m, t) => t).sort((a, b) => kong.mesh.mat[a] - kong.mesh.mat[b]);
+  const index = [];
+  order.forEach(t => index.push(kong.mesh.tri[3 * t], kong.mesh.tri[3 * t + 1], kong.mesh.tri[3 * t + 2]));
+  geo.setIndex(index);
+  order.forEach((t, k) => {
+    const m = kong.mesh.mat[t], last = geo.groups[geo.groups.length - 1];
+    if (last && last.materialIndex === m) last.count += 3; else geo.addGroup(3 * k, 3, m);
+  });
+  const fur = new THREE.Color('#9b6a43').lerp(accent, 0.18);
+  const meshMat = new THREE.MeshStandardMaterial({ color: fur, roughness: 0.85, side: THREE.DoubleSide });
+  const texMats = kong.mesh.materials.map(m => texturedMaterial(m));
+  const mesh = new THREE.Mesh(geo, meshMat);
+  kongGroup.add(mesh);
+  // spheres
+  const sphGeo = new THREE.SphereGeometry(1, 28, 18);
+  const spheres = kong.collision.spheres.map((s, i) => {
+    const color = new THREE.Color(css(s.mtx < 0 ? '--body' : '--bone'));
+    const mat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false, roughness: 0.4 });
+    const m = new THREE.Mesh(sphGeo, mat);
+    const wire = new THREE.LineSegments(new THREE.WireframeGeometry(new THREE.SphereGeometry(1, 16, 10)),
+      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.55 }));
+    m.add(wire);
+    m.scale.setScalar(s.r);
+    m.userData = { index: i, body: s.mtx < 0, wire, baseColor: color };
+    kongGroup.add(m);
+    return m;
+  });
+  const broad = new THREE.LineSegments(new THREE.WireframeGeometry(new THREE.SphereGeometry(kong.collision.broad, 24, 14)),
+    new THREE.LineBasicMaterial({ color: new THREE.Color(css('--broad')), transparent: true, opacity: 0.35 }));
+  kongGroup.add(broad);
+  // skeleton
+  const skelGeo = new THREE.BufferGeometry();
+  skelGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(kong.bones.length * 6), 3));
+  const skel = new THREE.LineSegments(skelGeo, new THREE.LineBasicMaterial({ color: accent, depthTest: false }));
+  skel.renderOrder = 2;
+  kongGroup.add(skel);
+  // trails
+  const trails = new THREE.Group(); kongGroup.add(trails);
+  S = { kong, mesh, meshMat, texMats, geo, spheres, broad, skel, trails, anim: null, frame: 0, travel: [], selected: -1 };
+  buildTable();
+  applyToggles();
+}
+
+function buildTrails() {
+  S.trails.clear();
+  S.travel = [];
+  const an = S.anim; if (!an) return;
+  const steps = Math.max(2, an.frames * 4);
+  const everActive = new Set();
+  for (let f = 0; f < an.frames; f++) { const ix = activeIndices(activeSet(an, f)); if (ix) ix.forEach(x => everActive.add(x)); }
+  const filterTrails = document.getElementById('sphereMode').value !== 'all' && an.windows.length > 0;
+  S.kong.collision.spheres.forEach((s, i) => {
+    const pts = [];
+    let travel = 0, prev = null;
+    // game mode: one point per frame the game evaluates; smooth mode: dense subframes
+    const frames = gameMode() && S.ups ? S.ups : Array.from({ length: steps + 1 }, (_, k) => (k / steps) * (an.frames - 1));
+    for (const pos of frames) {
+      const w = poseBones(S.kong, sampleAnim(an, pos, false), stretchAt(an, pos));
+      const c = sphereCenter(w, s);
+      if (prev) travel += Math.hypot(c[0] - prev[0], c[1] - prev[1], c[2] - prev[2]);
+      prev = c; pts.push(new THREE.Vector3(...c));
+    }
+    S.travel[i] = travel;
+    if (filterTrails && !everActive.has(i)) return;
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: S.spheres[i].userData.baseColor, transparent: true, opacity: 0.8 }));
+    line.userData.index = i;
+    S.trails.add(line);
+  });
+}
+
+function updatePose() {
+  if (!S || !S.anim) return;
+  const loop = true;
+  // In game mode the spheres (and mesh) use the pose built before this update advanced the
+  // animation, while the active set comes from the current frame.
+  const game = gameMode();
+  const poseFrame = game ? S.ups[Math.max(0, S.u - 1)] : S.frame;
+  const sample = sampleAnim(S.anim, poseFrame, loop);
+  const world = poseBones(S.kong, sample, stretchAt(S.anim, poseFrame));
+  S.world = world;
+  const { pos, nrm, bone } = S.kong.mesh;
+  const P = S.geo.attributes.position.array, N = S.geo.attributes.normal.array;
+  for (let v = 0; v < bone.length; v++) {
+    const M = world[bone[v]];
+    if (!M) continue;
+    const p = xform(M, pos[3 * v], pos[3 * v + 1], pos[3 * v + 2]);
+    P[3 * v] = p[0]; P[3 * v + 1] = p[1]; P[3 * v + 2] = p[2];
+    const nx = nrm[3 * v], ny = nrm[3 * v + 1], nz = nrm[3 * v + 2];
+    let a = nx * M[0] + ny * M[4] + nz * M[8], b = nx * M[1] + ny * M[5] + nz * M[9], c = nx * M[2] + ny * M[6] + nz * M[10];
+    const l = Math.hypot(a, b, c) || 1;
+    N[3 * v] = a / l; N[3 * v + 1] = b / l; N[3 * v + 2] = c / l;
+  }
+  S.geo.attributes.position.needsUpdate = true; S.geo.attributes.normal.needsUpdate = true;
+  S.geo.computeBoundingSphere();
+  const set = activeSet(S.anim, S.frame);
+  if (set !== null) { S.set = set; S.active = activeIndices(set); }
+  // func_global_asm_80673708 clears the touch value for every sphere it tests, so only the last
+  // active sphere with a radius can trigger touch surfaces
+  S.lastTested = -1;
+  if (S.active) S.kong.collision.spheres.forEach((s, i) => { if (S.active.has(i) && s.r > 0) S.lastTested = i; });
+  else if (S.set === undefined) { S.set = null; S.active = null; }
+  S.kong.collision.spheres.forEach((s, i) => {
+    const c = sphereCenter(world, s);
+    S.spheres[i].position.set(c[0], c[1], c[2]);
+    S.spheres[i].userData.center = c;
+  });
+  applySphereVisibility();
+  let setText;
+  if (S.set === null) setText = 'No sphere-set entry for this animation: the game keeps whatever set was active before';
+  else {
+    const lst = DATA.sphereSets[S.set];
+    setText = `Sphere set ${S.set}: ` + (lst.length ? lst.map(n => '#' + n).join(', ') : 'none, so nothing is tested against walls');
+    if (set === null) setText += ' (carried over, no entry for this frame)';
+    // func_global_asm_80673708 clears the touch value for every sphere it tests, so only the last one counts
+    const tested = lst.filter(n => S.kong.collision.spheres[n - 1] && S.kong.collision.spheres[n - 1].r > 0);
+    if (tested.length) setText += ` · only #${tested[tested.length - 1]} (the last one tested) can trigger touch surfaces like the B. Locker portal`;
+  }
+  document.getElementById('setInfo').textContent = setText;
+  const sp = S.skel.geometry.attributes.position.array;
+  S.kong.bones.forEach((b, i) => {
+    const o = world[b.mtx], p = b.parent === 255 ? null : world[b.parent];
+    const a = [o[12], o[13], o[14]], c = p ? [p[12], p[13], p[14]] : a;
+    sp.set([...c, ...a], 6 * i);
+  });
+  S.skel.geometry.attributes.position.needsUpdate = true;
+  updateTableValues();
+  const fr = S.frame;
+  if (game) {
+    document.getElementById('frameOut').textContent =
+      `update ${S.u}/${S.ups.length - 1} · frame ${fr.toFixed(2)} · pose ${poseFrame.toFixed(2)}`;
+    document.getElementById('scrub').value = S.u;
+  } else {
+    document.getElementById('frameOut').textContent = `${fr.toFixed(1)} / ${S.anim.frames}`;
+    document.getElementById('scrub').value = fr;
+  }
+}
+
+// ---------------------------------------------------------------- UI
+let DATA = null, playing = true, last = performance.now();
+const animList = document.getElementById('animList');
+const label = (a) => a.names[0] || `Animation 0x${a.anim.toString(16)}`;
+
+function selectKong(i) {
+  [...document.querySelectorAll('#kongs button')].forEach((b, j) => b.setAttribute('aria-pressed', i === j));
+  buildKong(DATA.kongs[i]);
+  renderAnimList();
+  const first = S.kong.anims.find(a => /Idle/.test(a.names[0] || '')) || S.kong.anims[0];
+  selectAnim(first);
+}
+function renderAnimList() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  animList.innerHTML = '';
+  const onlyBone = document.getElementById('onlyBone').checked;
+  S.kong.anims.forEach(a => {
+    const name = label(a), hex = '0x' + a.anim.toString(16);
+    if (onlyBone && !hasActiveBone(S.kong, a)) return;
+    if (/^0x[0-9a-f]+$/.test(q)) { if (hex !== q) return; }
+    else if (q && !(name.toLowerCase().includes(q) || a.names.join(' ').toLowerCase().includes(q))) return;
+    const b = document.createElement('button');
+    b.setAttribute('role', 'option');
+    b.innerHTML = `<span class="${a.names.length ? '' : 'unnamed'}"></span><span class="meta">${hex} · ${a.frames}f</span>`;
+    b.firstChild.textContent = name;
+    b.title = a.names.join('\n') || 'No known name';
+    b.onclick = () => selectAnim(a);
+    b.dataset.anim = a.anim;
+    if (S.anim === a) b.setAttribute('aria-current', 'true');
+    animList.append(b);
+  });
+}
+const gameMode = () => document.getElementById('mode').value === 'game';
+// Frames the game evaluates: 0, then a half step, then whole steps of speed x script speed x boost/2.
+function gameUpdates(a) {
+  const step = a.speed * (a.gspeed || 1) * (+document.getElementById('boost').value) / 2;
+  const ups = [0];
+  if (step > 0) for (let f = step / 2; f <= a.frames - 1 + 1e-6; f += step) ups.push(f);
+  return ups;
+}
+function setupTimeline() {
+  const a = S.anim, scrub = document.getElementById('scrub');
+  S.ups = gameUpdates(a); S.u = 0; S.frame = 0; S.acc = 0; S.set = undefined; S.active = null;
+  if (gameMode()) { scrub.max = S.ups.length - 1; scrub.step = 1; }
+  else { scrub.max = Math.max(0, a.frames - 1); scrub.step = 0.1; }
+}
+function selectAnim(a) {
+  S.anim = a;
+  [...animList.children].forEach(b => b.setAttribute('aria-current', String(+b.dataset.anim === a.anim)));
+  setupTimeline();
+  buildTrails();
+  applyToggles();
+  updatePose();
+  document.getElementById('hudMain').innerHTML =
+    `<b></b><br>${S.kong.name} · file 0x${a.anim.toString(16)} · ${a.frames} frames · speed ${a.speed.toFixed(2)}` +
+    ((a.gspeed || 1) !== 1 ? ` × script ${(+a.gspeed).toFixed(2)}` : '') +
+    ` · ${(a.speed * (a.gspeed || 1)).toFixed(2)} frames/update`;
+  document.querySelector('#hud b').textContent = label(a);
+}
+function buildTable() {
+  const tb = document.getElementById('tbody'); tb.innerHTML = '';
+  S.kong.collision.spheres.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    const mask = S.kong.masks && S.kong.masks[i + 1];
+    tr.innerHTML = `<td>${i + 1}</td><td>${s.mtx < 0 ? 'Body (root)' : 'Bone matrix ' + s.mtx}${mask ? ` <span class="badge" title="Interaction mask ${mask} (D_global_asm_80748F58)">mask ${mask}</span>` : ''}</td><td></td><td>${s.r.toFixed(1)}</td><td></td><td></td><td></td><td></td>`;
+    tr.onclick = () => selectSphere(S.selected === i ? -1 : i);
+    tb.append(tr);
+  });
+}
+function updateTableValues() {
+  const rows = document.getElementById('tbody').rows;
+  S.kong.collision.spheres.forEach((s, i) => {
+    const c = S.spheres[i].userData.center; if (!c) return;
+    const on = S.active ? S.active.has(i) : true;
+    rows[i].classList.toggle('off', !on);
+    rows[i].cells[2].textContent = S.active ? (on ? (s.r > 0 ? '●' : '● (r = 0)') : '–') : '?';
+    if (i === S.lastTested) {
+      const b = document.createElement('span');
+      b.className = 'badge last'; b.textContent = 'last tested';
+      b.title = 'Only this sphere can trigger touch surfaces such as the B. Locker portal';
+      rows[i].cells[2].append(' ', b);
+    }
+    rows[i].cells[4].textContent = c[0].toFixed(1);
+    rows[i].cells[5].textContent = c[1].toFixed(1);
+    rows[i].cells[6].textContent = c[2].toFixed(1);
+    rows[i].cells[7].textContent = S.travel[i] != null ? S.travel[i].toFixed(0) : '';
+  });
+}
+function selectSphere(i) {
+  S.selected = i;
+  [...document.getElementById('tbody').rows].forEach((r, j) => r.classList.toggle('sel', j === i));
+  applySphereVisibility();
+}
+// selected sphere > last tested sphere (red) > body / bone colour
+function sphereColor(i) {
+  if (i === S.selected) return new THREE.Color(css('--sel'));
+  if (i === S.lastTested && document.getElementById('tLast').checked) return new THREE.Color(css('--last'));
+  return S.spheres[i].userData.baseColor;
+}
+function applySphereVisibility() {
+  if (!S) return;
+  const mode = document.getElementById('sphereMode').value;
+  const on = (id) => document.getElementById(id).checked;
+  S.spheres.forEach((m, i) => {
+    const kindOn = m.userData.body ? on('tBody') : on('tBone');
+    const active = mode === 'all' || !S.active || S.active.has(i);
+    m.visible = kindOn && (active || mode === 'dim') && S.kong.collision.spheres[i].r > 0;
+    m.material.opacity = S.selected === i ? 0.45 : !active ? 0.05 : (S.selected >= 0 ? 0.12 : 0.22);
+    m.userData.wire.material.opacity = !active ? 0.12 : 0.55;
+    const color = sphereColor(i);
+    m.material.color = color; m.userData.wire.material.color = color;
+  });
+  S.trails.children.forEach(l => {
+    const i = l.userData.index;
+    l.visible = on('tTrail') && S.spheres[i].visible;
+    l.material.opacity = S.selected < 0 || i === S.selected ? 0.85 : 0.15;
+    l.material.color = sphereColor(i);
+  });
+}
+function applyToggles() {
+  if (!S) return;
+  const on = (id) => document.getElementById(id).checked;
+  applySphereVisibility();
+  S.broad.visible = on('tBroad');
+  S.skel.visible = on('tSkel');
+  S.trails.visible = on('tTrail');
+  grid.visible = on('tGrid');
+  const mode = document.getElementById('meshMode').value;
+  S.mesh.visible = mode !== 'off';
+  S.mesh.material = on('tTex') ? S.texMats : S.meshMat;
+  new Set([S.meshMat, ...S.texMats]).forEach(m => {
+    m.wireframe = mode === 'wire';
+    m.transparent = mode === 'ghost';
+    m.opacity = mode === 'ghost' ? 0.35 : 1;
+    // three.js tests alpha after multiplying by the opacity, so scale the cut-out threshold with it
+    // (otherwise every texel falls under it in see-through mode and the Kong disappears)
+    m.alphaTest = (m.userData.alphaTest || 0) * m.opacity;
+    m.depthWrite = mode !== 'ghost';
+    m.needsUpdate = true;
+  });
+}
+['tBone','tBody','tBroad','tTrail','tSkel','tGrid','tLast','tTex','meshMode'].forEach(id => document.getElementById(id).addEventListener('change', applyToggles));
+document.getElementById('sphereMode').addEventListener('change', () => { buildTrails(); applyToggles(); updatePose(); selectSphere(S.selected); });
+document.getElementById('search').addEventListener('input', renderAnimList);
+document.getElementById('onlyBone').addEventListener('change', renderAnimList);
+document.getElementById('play').onclick = () => { playing = !playing; document.getElementById('play').textContent = playing ? '⏸' : '▶'; };
+document.getElementById('step').onclick = () => {
+  playing = false; document.getElementById('play').textContent = '▶';
+  if (gameMode()) { S.u = (S.u + 1) % S.ups.length; S.frame = S.ups[S.u]; if (S.u === 0) S.set = undefined; }
+  else S.frame = (Math.floor(S.frame) + 1) % S.anim.frames;
+  updatePose();
+};
+document.getElementById('scrub').addEventListener('input', (e) => {
+  playing = false; document.getElementById('play').textContent = '▶';
+  if (gameMode()) { S.u = +e.target.value; S.frame = S.ups[S.u]; }
+  else S.frame = +e.target.value;
+  updatePose();
+});
+['mode', 'boost'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+  if (S && S.anim) { setupTimeline(); buildTrails(); applyToggles(); updatePose(); }
+}));
+
+// hover tooltips
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), tip = document.getElementById('tip');
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!S) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(S.spheres.filter(m => m.visible), false)[0];
+  if (hit) {
+    const i = hit.object.userData.index, s = S.kong.collision.spheres[i];
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX - r.left + 14) + 'px'; tip.style.top = (e.clientY - r.top + 10) + 'px';
+    tip.textContent = `#${i + 1} · ${s.mtx < 0 ? 'body (root)' : 'bone matrix ' + s.mtx} · r ${s.r.toFixed(1)} · ${!S.active || S.active.has(i) ? 'active' : 'inactive'}`;
+  } else tip.style.display = 'none';
+});
+renderer.domElement.addEventListener('click', () => {
+  if (!S) return;
+  const hit = ray.intersectObjects(S.spheres.filter(m => m.visible), false)[0];
+  if (hit) selectSphere(S.selected === hit.object.userData.index ? -1 : hit.object.userData.index);
+});
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+
+function tick(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (S && S.anim && playing) {
+    const rate = +document.getElementById('speed').value, boost = +document.getElementById('boost').value;
+    if (gameMode()) {
+      // one game update every boost/60 s (30 Hz without lag), showing only the frames it evaluates
+      S.acc += dt * rate * 60 / boost;
+      if (S.acc >= 1) {
+        S.u += Math.floor(S.acc); S.acc %= 1;
+        if (S.u >= S.ups.length) { S.u %= S.ups.length; S.set = undefined; }
+        S.frame = S.ups[S.u];
+        updatePose();
+      }
+    } else {
+      S.frame += dt * rate * 30 * S.anim.speed * (S.anim.gspeed || 1) * boost / 2;
+      if (S.frame >= S.anim.frames) S.frame %= S.anim.frames;
+      updatePose();
+    }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+async function start(data) {
+  DATA = data;
+  document.getElementById('drop').style.display = 'none';
+  const kb = document.getElementById('kongs'); kb.innerHTML = '';
+  DATA.kongs.forEach((k, i) => {
+    const b = document.createElement('button'); b.textContent = k.name; b.onclick = () => selectKong(i);
+    b.style.color = KONG_ACCENT[k.name]; kb.append(b);
+  });
+  applyTheme();
+  selectKong(0);
+}
+
+applyTheme();
+requestAnimationFrame(tick);
+if (window.KONG_DATA_GZ_B64) start(await gunzipB64(window.KONG_DATA_GZ_B64));
+else document.getElementById('drop').style.display = 'flex';
+addEventListener('dragover', (e) => e.preventDefault());
+addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f) start(await loadFromFile(f));
+});
+</script>
+</body>
+</html>

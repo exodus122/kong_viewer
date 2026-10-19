@@ -1,0 +1,6 @@
+map 0xc2: B. Locker (824.6, 227.0) facing 14.9; floor y 13.5; sink 0.6
+  DK      no reachable setup
+  Diddy   no reachable setup
+  Lanky   TOUCH margin  5.10  Ground Attack (Final) (0x17c) frame 16, sphere #7; stand at world (667.1, 331.5) [left side], facing 0xBFF (270 deg)
+  Tiny    no reachable setup
+  Chunky  no reachable setup
