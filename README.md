@@ -1,15 +1,21 @@
 # Kong collision sphere viewer
 
 A 3D viewer for the five Kongs' collision spheres, posed by their real animations.
-All data is decoded from your own US ROM. Nothing from the game ships with the viewer.
+Its data, `kong_data.js`, is decoded from the US ROM and kept in the repo, so the viewer works
+straight after a clone:
 
 ```
-python scripts/extract.py                        # writes kong_data.js (~2 MB); ROM: the decomp's baserom.us.z64 or --rom
 python -m http.server 8764                       # then open http://localhost:8764
 ```
 
 Opening `index.html` straight from disk also works, since it loads `kong_data.js` with a
 plain script tag. You can also drop a `kong_data.js` file onto the page.
+
+To regenerate `kong_data.js` after changing the extractor (or to check it against your own ROM):
+
+```
+python scripts/extract.py                        # ROM: the decomp's baserom.us.z64, or --rom <path>
+```
 
 ## What it shows
 
@@ -71,7 +77,7 @@ neither source covers shows its file index.
 
 ## Files
 
-- `index.html`: the viewer (three.js 0.160 from jsDelivr); `kong_data.js`: its data, written by `scripts/extract.py`
+- `index.html`: the viewer (three.js 0.160 from jsDelivr); `kong_data.js`: its data (committed; regenerate with `scripts/extract.py`)
 - `scripts/`
   - `extract.py`: the extractor; `ptr.py`: pointer-table access
   - `opcodes.py` → `opcodes.json`: argument length of each animation-script opcode, regenerated from the decomp sources
